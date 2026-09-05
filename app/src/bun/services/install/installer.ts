@@ -54,6 +54,7 @@ export async function inspectRepo(url: string): Promise<RepoInspection> {
 
 	const readmeRel = manifest.readmePath ? manifest.readmePath.slice(skillRoot.length + 1) : manifest.format === "SKILL.md" ? manifest.entryPoint : null;
 	const branch = repo.ref ?? meta.defaultBranch;
+	const isProject = manifest.format === "claude-project";
 	const result: RepoInspection = {
 		inspectionId,
 		repoUrl: repo.htmlUrl,
@@ -61,10 +62,11 @@ export async function inspectRepo(url: string): Promise<RepoInspection> {
 		readmeUrl: readmeRel ? `${repo.htmlUrl}/blob/${branch}/${repo.subdir ? `${repo.subdir}/` : ""}${readmeRel}` : null,
 		skillId,
 		alreadyInstalled: skillId in registry.installed,
-		name: manifest.name,
-		description: manifest.description || meta.description || "",
+		name: isProject ? repo.name : manifest.name,
+		description: isProject ? meta.description || manifest.description : manifest.description || meta.description || "",
 		manifestType: manifest.format,
 		entryPoint: manifest.entryPoint,
+		commands: manifest.commands,
 		permissions: analyzePermissions(manifest),
 		mcpServers: manifest.mcpServers.map((s) => ({ name: s.name, type: s.type, target: s.url ?? s.command ?? "" })),
 		dependencies: manifest.dependencies,
@@ -172,6 +174,7 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 			name: item.result.name,
 			description: item.result.description,
 			manifestType: item.result.manifestType,
+			commands: item.result.commands,
 			lastChecked: new Date().toISOString(),
 		};
 		await skillsStore.update((registry) => {
@@ -181,7 +184,7 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 				installedAt: new Date().toISOString(),
 				localPath: skillRoot,
 				commitHash: item.commitHash,
-				status: item.manifest.mcpServers.length > 0 ? "ready" : "no-ui",
+				status: item.manifest.mcpServers.length > 0 || item.manifest.commands.length > 0 ? "ready" : "no-ui",
 			};
 		});
 		pending.delete(inspectionId);

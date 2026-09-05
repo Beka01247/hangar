@@ -9,6 +9,7 @@ export function SkillRunner({ item }: { item: LibrarySkill }) {
 	const [error, setError] = useState<string | null>(null);
 	const [text, setText] = useState("");
 	const [log, setLog] = useState<string[] | null>(null);
+	const commands = item.skill.commands ?? [];
 	const bottom = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -63,7 +64,30 @@ export function SkillRunner({ item }: { item: LibrarySkill }) {
 					</button>
 				</span>
 			</div>
-			<p className="muted">No custom interface for this skill yet — this is the default conversation view. Every tool call is shown as it happens.</p>
+			{commands.length > 0 ? (
+				<div style={{ marginBottom: 8 }}>
+					<p className="muted">Commands this project defines. Ones that take an argument put it into the input for you to finish.</p>
+					<div className="row" style={{ flexWrap: "wrap" }}>
+						{commands.map((c) => (
+							<button
+								key={c.name}
+								type="button"
+								title={c.description}
+								disabled={status === "stopped" || status === "starting" || status === "error"}
+								onClick={() => {
+									if (c.argumentHint) setText(`/${c.name} `);
+									else void api.sendToSkill({ skillId, text: `/${c.name}` }).catch((e) => setError(errorMessage(e)));
+								}}
+							>
+								/{c.name}
+								{c.argumentHint && <span className="muted"> {c.argumentHint}</span>}
+							</button>
+						))}
+					</div>
+				</div>
+			) : (
+				<p className="muted">No custom interface for this skill yet — this is the default conversation view. Every tool call is shown as it happens.</p>
+			)}
 			{error && <p className="error">{error}</p>}
 
 			<div style={{ maxHeight: 420, overflow: "auto", border: "1px solid #ddd", padding: 8, marginBottom: 8 }}>

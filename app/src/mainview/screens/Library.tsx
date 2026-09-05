@@ -69,6 +69,7 @@ function SkillCard({ item, onOpen }: { item: LibrarySkill; onOpen: () => void })
 				{item.skill.repoOwner}/{item.skill.repoName}
 			</div>
 			{!item.official && <span className="badge">unofficial · community</span>}
+			{item.anomaly && <span className="badge error" style={{ marginLeft: 4 }}>unusual spend</span>}
 			<div className="row" style={{ marginTop: 8, justifyContent: "space-between" }}>
 				<span>{item.runsLast7Days} runs / week</span>
 				<span>${item.monthSpendUsd.toFixed(2)} this month</span>

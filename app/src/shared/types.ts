@@ -1,4 +1,4 @@
-export type ManifestType = "plugin.json" | "SKILL.md" | "fallback";
+export type ManifestType = "plugin.json" | "SKILL.md" | "claude-project" | "fallback";
 
 export type PermissionType = "network" | "filesystem" | "env" | "github" | "claude";
 
@@ -14,8 +14,15 @@ export interface Manifest {
 	requestedPermissions: Permission[];
 }
 
+export interface SkillCommand {
+	name: string;
+	description: string;
+	argumentHint: string | null;
+}
+
 export interface Skill {
 	id: string;
+	commands?: SkillCommand[];
 	repoUrl: string;
 	repoOwner: string;
 	repoName: string;
@@ -107,6 +114,7 @@ export interface LibrarySkill {
 	monthTokens: number;
 	runsLast7Days: number;
 	lastRunAt: string | null;
+	anomaly: boolean;
 }
 
 export type SetupTokenPhase =
@@ -145,6 +153,7 @@ export interface RepoInspection {
 	description: string;
 	manifestType: ManifestType;
 	entryPoint: string;
+	commands: SkillCommand[];
 	permissions: Permission[];
 	mcpServers: { name: string; type: string; target: string }[];
 	dependencies: { node: boolean; python: boolean };
@@ -193,4 +202,37 @@ export interface SkillSessionState {
 	status: SkillStatus;
 	events: SkillEventEnvelope[];
 	workspace: string;
+}
+
+export type StoreSort = "best-match" | "stars" | "updated";
+
+export interface StoreResult {
+	fullName: string;
+	htmlUrl: string;
+	installUrl: string;
+	manifestPath: string;
+	description: string;
+	stars: number;
+	pushedAt: string;
+	topics: string[];
+	ownerLogin: string;
+	language: string | null;
+	installed: boolean;
+}
+
+export interface UsageSkillRow {
+	skillId: string;
+	name: string;
+	monthSpendUsd: number;
+	monthTokens: number;
+	monthRuns: number;
+	spend24hUsd: number;
+	baselineDailyUsd: number;
+	anomaly: boolean;
+}
+
+export interface UsageReport {
+	totalMonthUsd: number;
+	rows: UsageSkillRow[];
+	recent: (UsageRecord & { skillName: string })[];
 }

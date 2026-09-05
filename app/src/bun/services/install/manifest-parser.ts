@@ -1,10 +1,10 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { ManifestType } from "../../../shared/types";
+import type { ManifestType, SkillCommand } from "../../../shared/types";
 
 export class ManifestError extends Error {}
 
-export type EntryKind = "plugin" | "skill" | "node" | "python";
+export type EntryKind = "plugin" | "skill" | "claude-project" | "node" | "python";
 
 export interface ParsedManifest {
 	format: ManifestType;
@@ -13,6 +13,7 @@ export interface ParsedManifest {
 	entryKind: EntryKind;
 	entryPoint: string;
 	skillMdPaths: string[];
+	commands: SkillCommand[];
 	mcpServers: McpServer[];
 	allowedTools: string[];
 	dependencies: { node: boolean; python: boolean };
@@ -75,6 +76,32 @@ function findSkillMds(root: string, depth = 3): string[] {
 	return found;
 }
 
+function readCommands(root: string, rawFiles: Record<string, string>): SkillCommand[] {
+	const dir = join(root, ".claude", "commands");
+	if (!existsSync(dir)) return [];
+	const commands: SkillCommand[] = [];
+	const walk = (current: string, prefix: string) => {
+		for (const name of readdirSync(current).sort()) {
+			const full = join(current, name);
+			if (statSync(full).isDirectory()) {
+				walk(full, `${prefix}${name}:`);
+				continue;
+			}
+			if (!name.endsWith(".md")) continue;
+			const text = readFileSync(full, "utf8");
+			rawFiles[full.slice(root.length + 1)] = text;
+			const { fields, body } = parseFrontmatter(text);
+			commands.push({
+				name: `${prefix}${name.slice(0, -3)}`,
+				description: fields["description"] ?? body.trim().split("\n").find((l) => l.trim() && !l.startsWith("#"))?.trim().slice(0, 160) ?? "",
+				argumentHint: fields["argument-hint"] ?? null,
+			});
+		}
+	};
+	walk(dir, "");
+	return commands;
+}
+
 async function readMcpServers(root: string): Promise<McpServer[]> {
 	const servers: McpServer[] = [];
 	for (const file of ["mcp.json", ".mcp.json"]) {
@@ -105,6 +132,8 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 	const skillMdPaths = findSkillMds(root);
 	for (const p of skillMdPaths) await remember(p.slice(root.length + 1));
 	const mcpServers = await readMcpServers(root);
+	const commands = readCommands(root, rawFiles);
+	const claudeMd = await remember("CLAUDE.md");
 	await remember("mcp.json");
 	await remember(".mcp.json");
 	const pkg = await readJson<{ name?: string; description?: string; scripts?: Record<string, string>; main?: string; bin?: unknown }>(join(root, "package.json"));
@@ -127,6 +156,7 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 			entryKind: "plugin",
 			entryPoint: skillMdPaths[0]?.slice(root.length + 1) ?? "plugin.json",
 			skillMdPaths,
+			commands,
 			mcpServers,
 			allowedTools: [],
 			dependencies,
@@ -146,8 +176,27 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 			entryKind: "skill",
 			entryPoint: primary.slice(root.length + 1),
 			skillMdPaths,
+			commands,
 			mcpServers,
 			allowedTools,
+			dependencies,
+			readmePath,
+			rawFiles,
+		};
+	}
+
+	if (claudeMd !== null || commands.length > 0) {
+		const title = claudeMd?.match(/^#\s+(.+)$/m)?.[1] ?? rawFiles[readmePath ? readmePath.slice(root.length + 1) : ""]?.match(/^#\s+(.+)$/m)?.[1];
+		return {
+			format: "claude-project",
+			name: (title ?? root.split("/").pop() ?? "skill").trim(),
+			description: (claudeMd ?? "").split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"))?.trim().slice(0, 200) ?? "",
+			entryKind: "claude-project",
+			entryPoint: claudeMd !== null ? "CLAUDE.md" : ".claude/commands",
+			skillMdPaths,
+			commands,
+			mcpServers,
+			allowedTools: [],
 			dependencies,
 			readmePath,
 			rawFiles,
@@ -165,6 +214,7 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 			entryKind: "node",
 			entryPoint: entry,
 			skillMdPaths: [],
+			commands,
 			mcpServers,
 			allowedTools: [],
 			dependencies,
@@ -188,6 +238,7 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 			entryKind: "python",
 			entryPoint: entry,
 			skillMdPaths: [],
+			commands,
 			mcpServers,
 			allowedTools: [],
 			dependencies,
@@ -196,5 +247,5 @@ export async function parseManifest(root: string): Promise<ParsedManifest> {
 		};
 	}
 
-	throw new ManifestError("Could not figure out how to run this repository: no plugin.json, SKILL.md, package.json or Python project found");
+	throw new ManifestError("Could not figure out how to run this repository: no plugin.json, SKILL.md, CLAUDE.md, package.json or Python project found");
 }

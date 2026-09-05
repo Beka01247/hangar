@@ -3,6 +3,7 @@ import type { InstallProgress, RepoInspection } from "../../shared/types";
 import { api, errorMessage, onInstallProgress } from "../rpc";
 
 interface Props {
+	initialUrl?: string;
 	onDone: () => void;
 	onCancel: () => void;
 }
@@ -14,8 +15,8 @@ type Stage =
 	| { name: "installing"; inspection: RepoInspection; progress: InstallProgress | null; log: string[] }
 	| { name: "done"; inspection: RepoInspection };
 
-export function Install({ onDone, onCancel }: Props) {
-	const [url, setUrl] = useState("");
+export function Install({ initialUrl, onDone, onCancel }: Props) {
+	const [url, setUrl] = useState(initialUrl ?? "");
 	const [stage, setStage] = useState<Stage>({ name: "input" });
 	const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +127,9 @@ function Consent({ inspection, error, onInstall, onCancel }: { inspection: RepoI
 					{inspection.dependencies.node && " · Node dependencies"}
 					{inspection.dependencies.python && " · Python dependencies"}
 				</p>
+				{inspection.commands.length > 0 && (
+					<p className="muted">Commands: {inspection.commands.map((c) => `/${c.name}`).join(", ")}</p>
+				)}
 				{inspection.alreadyInstalled && <p className="error">Already installed — installing again will replace the current copy.</p>}
 			</section>
 

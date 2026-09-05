@@ -95,7 +95,10 @@ export class SkillSession {
 			systemPrompt: {
 				type: "preset",
 				preset: "claude_code",
-				append: `You are running inside Hangar as the installed skill "${this.skill.name}" (${this.skill.repoUrl}). Use that skill for every request. The working directory is a scratch workspace owned by Hangar; keep files you produce there.`,
+				append:
+					this.skill.manifestType === "claude-project"
+						? `You are running inside Hangar as the installed project "${this.skill.name}" (${this.skill.repoUrl}). Follow its CLAUDE.md and slash commands.`
+						: `You are running inside Hangar as the installed skill "${this.skill.name}" (${this.skill.repoUrl}). Use that skill for every request. The working directory is a scratch workspace owned by Hangar; keep files you produce there.`,
 			},
 			stderr: (line) => this.journal({ type: "stderr", line }),
 		};

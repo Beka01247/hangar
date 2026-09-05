@@ -10,8 +10,11 @@ import type {
 	SkillAccess,
 	SkillEventEnvelope,
 	SkillSessionState,
+	StoreResult,
+	StoreSort,
 	TokenScope,
 	UsageRecord,
+	UsageReport,
 } from "./types";
 
 export type AppRPC = {
@@ -45,6 +48,8 @@ export type AppRPC = {
 			stopSkill: { params: { skillId: string }; response: { ok: true } };
 			sendToSkill: { params: { skillId: string; text: string }; response: { ok: true } };
 			getSkillLog: { params: { skillId: string; tailLines?: number }; response: string[] };
+			searchStore: { params: { query: string; sort: StoreSort }; response: StoreResult[] };
+			getUsageReport: { params: void; response: UsageReport };
 			openExternal: { params: { url: string }; response: { ok: boolean } };
 		};
 		messages: {};

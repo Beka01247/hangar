@@ -11,6 +11,8 @@ export const WORKSPACES_DIR = join(DATA_DIR, "workspaces");
 export const LOGS_DIR = join(DATA_DIR, "logs");
 
 export function prepareWorkspace(skill: Skill, installed: InstalledSkill): string {
+	mkdirSync(LOGS_DIR, { recursive: true });
+	if (skill.manifestType === "claude-project") return installed.localPath;
 	const workspace = join(WORKSPACES_DIR, skill.id);
 	const skillsDir = join(workspace, ".claude", "skills");
 	mkdirSync(skillsDir, { recursive: true });
