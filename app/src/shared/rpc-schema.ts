@@ -7,6 +7,8 @@ import type {
 	LibrarySkill,
 	RepoInspection,
 	SetupTokenProgress,
+	SkillAccess,
+	TokenScope,
 	UsageRecord,
 } from "./types";
 
@@ -33,6 +35,9 @@ export type AppRPC = {
 			installSkill: { params: { inspectionId: string }; response: { ok: true } };
 			discardInspection: { params: { inspectionId: string }; response: { ok: true } };
 			uninstallSkill: { params: { skillId: string }; response: { ok: true } };
+			getSkillAccess: { params: { skillId: string }; response: SkillAccess };
+			copySkillToken: { params: { skillId: string }; response: { ok: boolean } };
+			setSkillAccess: { params: { skillId: string; scope: TokenScope; granted: boolean }; response: SkillAccess };
 			getSkillUsage: { params: { skillId: string }; response: UsageRecord[] };
 			openExternal: { params: { url: string }; response: { ok: boolean } };
 		};

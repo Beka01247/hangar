@@ -35,6 +35,24 @@ export interface InstalledSkill {
 	status: InstalledSkillStatus;
 }
 
+export type TokenScope = "claude" | "github" | "network";
+
+export interface ScopedToken {
+	skillId: string;
+	token: string;
+	allowedScopes: TokenScope[];
+	issuedAt: string;
+	revokedAt: string | null;
+}
+
+export interface SkillAccess {
+	skillId: string;
+	scopes: Record<TokenScope, boolean>;
+	proxyUrl: string;
+	tokenPreview: string;
+	claudeDirectApiAvailable: boolean;
+}
+
 export interface UsageRecord {
 	skillId: string;
 	tokens: number;

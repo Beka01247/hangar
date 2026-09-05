@@ -4,6 +4,7 @@ import type { InstallProgress, RepoInspection, Skill } from "../../../shared/typ
 import { getSecret } from "../../secrets/keychain";
 import { DATA_DIR } from "../../store/json-store";
 import { skillsStore } from "../../store/skills";
+import { issueToken, revokeTokens, scopesFromPermissions } from "../../store/tokens";
 import { fetchRepoMeta } from "../github";
 import { analyzePermissions } from "./analyzer";
 import { headCommit, shallowClone } from "./git";
@@ -160,7 +161,8 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 		report("dependencies", item.manifest.dependencies.node || item.manifest.dependencies.python ? "Installing dependencies into the skill folder" : "No dependencies to install");
 		await installDependencies(skillRoot, item.manifest, (line) => report("dependencies", undefined, line));
 
-		report("registering", "Adding to library");
+		report("registering", "Issuing a scoped token and adding to library");
+		await issueToken(item.result.skillId, scopesFromPermissions(item.result.permissions));
 		const skill: Skill = {
 			id: item.result.skillId,
 			repoUrl: item.result.repoUrl,
@@ -191,6 +193,7 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 }
 
 export async function uninstallSkill(skillId: string): Promise<void> {
+	await revokeTokens(skillId);
 	await skillsStore.update((registry) => {
 		delete registry.installed[skillId];
 		delete registry.skills[skillId];

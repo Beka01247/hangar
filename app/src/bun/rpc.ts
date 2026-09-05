@@ -2,6 +2,7 @@ import { BrowserView, Utils } from "electrobun/main";
 import type { AppRPC } from "../shared/rpc-schema";
 import type { GitHubLoginProgress, InstallProgress, SetupTokenProgress } from "../shared/types";
 import { discardInspection, inspectRepo, installSkill, uninstallSkill } from "./services/install/installer";
+import { getSkillAccess, updateSkillAccess } from "./services/access";
 import { listLibrary } from "./services/library";
 import {
 	acceptDisclaimer,
@@ -15,6 +16,7 @@ import {
 } from "./services/onboarding";
 import { cancelGitHubDeviceFlow, runGitHubDeviceFlow, tokenFromGitHubCli } from "./services/github-oauth";
 import { cancelSetupToken, startSetupToken, submitSetupCode } from "./services/setup-token";
+import { tokenForSkill } from "./store/tokens";
 import { usageStore } from "./store/usage";
 
 export function createAppRPC() {
@@ -109,6 +111,13 @@ export function createAppRPC() {
 					rpc.send.libraryChanged();
 					return { ok: true } as const;
 				},
+				getSkillAccess: ({ skillId }) => getSkillAccess(skillId),
+				copySkillToken: async ({ skillId }) => {
+					const token = await tokenForSkill(skillId);
+					if (token) Utils.clipboardWriteText(token.token);
+					return { ok: token !== null };
+				},
+				setSkillAccess: ({ skillId, scope, granted }) => updateSkillAccess(skillId, scope, granted),
 				getSkillUsage: async ({ skillId }) => (await usageStore.read()).usage.filter((u) => u.skillId === skillId),
 				openExternal: ({ url }) => ({ ok: Utils.openExternal(url) }),
 			},

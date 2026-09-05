@@ -2,10 +2,12 @@ import { BrowserWindow } from "electrobun/main";
 import { installFileLogging, LOG_FILES } from "./log";
 import { installApplicationMenu } from "./menu";
 import { createAppRPC } from "./rpc";
+import { startProxy } from "./services/proxy";
 import { DATA_DIR } from "./store/json-store";
 
 installFileLogging();
 installApplicationMenu();
+startProxy();
 
 const rpc = createAppRPC();
 

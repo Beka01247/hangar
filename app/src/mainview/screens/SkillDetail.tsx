@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { LibrarySkill, UsageRecord } from "../../shared/types";
+import type { LibrarySkill, SkillAccess, TokenScope, UsageRecord } from "../../shared/types";
 import { api, errorMessage } from "../rpc";
 
 interface Props {
@@ -11,6 +11,19 @@ export function SkillDetail({ item, onBack }: Props) {
 	const [usage, setUsage] = useState<UsageRecord[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [confirmRemove, setConfirmRemove] = useState(false);
+	const [access, setAccess] = useState<SkillAccess | null>(null);
+
+	useEffect(() => {
+		api.getSkillAccess({ skillId: item.skill.id }).then(setAccess).catch((e) => setError(errorMessage(e)));
+	}, [item.skill.id]);
+
+	async function toggle(scope: TokenScope, granted: boolean) {
+		try {
+			setAccess(await api.setSkillAccess({ skillId: item.skill.id, scope, granted }));
+		} catch (e) {
+			setError(errorMessage(e));
+		}
+	}
 
 	useEffect(() => {
 		api.getSkillUsage({ skillId: item.skill.id }).then(setUsage).catch((e) => setError(errorMessage(e)));
@@ -39,6 +52,28 @@ export function SkillDetail({ item, onBack }: Props) {
 				<p className="muted">
 					The skill is installed at {item.installed.localPath}. Running it and building its UI arrive in later milestones.
 				</p>
+			</section>
+
+			<section>
+				<h2>Access</h2>
+				<p className="muted">
+					The skill never sees your keys. It gets its own token ({access?.tokenPreview}) and talks to Claude and GitHub through Hangar at{" "}
+					<code>{access?.proxyUrl}</code>. Turn anything off here and the next request gets a 403.{" "}
+					<button type="button" onClick={() => api.copySkillToken({ skillId: item.skill.id })}>
+						Copy token
+					</button>
+				</p>
+				{access &&
+					(["claude", "github", "network"] as TokenScope[]).map((scope) => (
+						<label key={scope} style={{ display: "block", marginBottom: 4 }}>
+							<input type="checkbox" checked={access.scopes[scope]} onChange={(e) => toggle(scope, e.target.checked)} />{" "}
+							{scope === "claude" ? "Claude" : scope === "github" ? "GitHub" : "Network"}
+							{scope === "claude" && !access.claudeDirectApiAvailable && (
+								<span className="muted"> — subscription mode: only through the Agent SDK inside Hangar</span>
+							)}
+							{scope === "network" && <span className="muted"> — advisory until the runtime enforces it</span>}
+						</label>
+					))}
 			</section>
 
 			<section>
