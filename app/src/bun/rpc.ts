@@ -2,6 +2,7 @@ import { BrowserView, Utils } from "electrobun/main";
 import type { AppRPC } from "../shared/rpc-schema";
 import type { GitHubLoginProgress, InstallProgress, SetupTokenProgress, SkillEventEnvelope } from "../shared/types";
 import { discardInspection, inspectRepo, installSkill, uninstallSkill } from "./services/install/installer";
+import { applySkillUpdate, checkSkillUpdate } from "./services/install/updater";
 import { getSkillAccess, updateSkillAccess } from "./services/access";
 import { listLibrary } from "./services/library";
 import {
@@ -113,6 +114,12 @@ export function createAppRPC() {
 					await uninstallSkill(skillId);
 					rpc.send.libraryChanged();
 					return { ok: true } as const;
+				},
+				checkSkillUpdate: ({ skillId }) => checkSkillUpdate(skillId),
+				applySkillUpdate: async ({ skillId }) => {
+					const result = await applySkillUpdate(skillId);
+					rpc.send.libraryChanged();
+					return result;
 				},
 				getSkillAccess: ({ skillId }) => getSkillAccess(skillId),
 				copySkillToken: async ({ skillId }) => {

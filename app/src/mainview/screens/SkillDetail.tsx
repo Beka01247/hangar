@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LibrarySkill, SkillAccess, TokenScope, UsageRecord } from "../../shared/types";
 import { api, errorMessage, onSkillEvent } from "../rpc";
 import { SkillRunner } from "./SkillRunner";
+import { SkillUpdate } from "./SkillUpdate";
 
 interface Props {
 	item: LibrarySkill;
@@ -61,6 +62,16 @@ export function SkillDetail({ item: initial, onBack }: Props) {
 			</p>
 
 			<SkillRunner item={item} />
+
+			<SkillUpdate
+				item={item}
+				onUpdated={() =>
+					void api.listLibrary().then((list) => {
+						const fresh = list.find((l) => l.skill.id === item.skill.id);
+						if (fresh) setItem(fresh);
+					})
+				}
+			/>
 
 			<section>
 				<h2>Access</h2>

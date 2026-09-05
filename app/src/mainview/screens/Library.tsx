@@ -70,6 +70,7 @@ function SkillCard({ item, onOpen }: { item: LibrarySkill; onOpen: () => void })
 			</div>
 			{!item.official && <span className="badge">unofficial · community</span>}
 			{item.anomaly && <span className="badge error" style={{ marginLeft: 4 }}>unusual spend</span>}
+			{item.installed.updateAvailable && <span className="badge" style={{ marginLeft: 4 }}>update available</span>}
 			<div className="row" style={{ marginTop: 8, justifyContent: "space-between" }}>
 				<span>{item.runsLast7Days} runs / week</span>
 				<span>${item.monthSpendUsd.toFixed(2)} this month</span>

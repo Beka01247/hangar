@@ -40,6 +40,18 @@ export interface InstalledSkill {
 	localPath: string;
 	commitHash: string;
 	status: InstalledSkillStatus;
+	updateAvailable?: { sha: string; manifestChanged: boolean } | null;
+}
+
+export interface UpdateCheck {
+	skillId: string;
+	upToDate: boolean;
+	commitsBehind: number;
+	latestSha: string;
+	latestDate: string | null;
+	manifestChanged: boolean;
+	changedFiles: string[];
+	newPermissions: Permission[];
 }
 
 export type TokenScope = "claude" | "github" | "network";

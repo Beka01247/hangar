@@ -43,3 +43,15 @@ export async function headCommit(dir: string): Promise<string> {
 	if (code !== 0) throw new GitError("Could not read HEAD commit");
 	return stdout.trim();
 }
+
+export async function runGit(args: string[], strict = false): Promise<{ code: number; stdout: string; stderr: string }> {
+	const proc = Bun.spawn([findGit(), ...args], {
+		env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+		stdin: "ignore",
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+	if (strict && code !== 0) throw new GitError(`git ${args.filter((a) => a !== "-C").slice(1, 3).join(" ")} failed: ${stderr.trim().split("\n").pop() ?? code}`);
+	return { code, stdout, stderr };
+}

@@ -5,6 +5,7 @@ import type {
 	GitHubLoginProgress,
 	InstallProgress,
 	LibrarySkill,
+	Permission,
 	RepoInspection,
 	SetupTokenProgress,
 	SkillAccess,
@@ -13,6 +14,7 @@ import type {
 	StoreResult,
 	StoreSort,
 	TokenScope,
+	UpdateCheck,
 	UsageRecord,
 	UsageReport,
 } from "./types";
@@ -40,6 +42,8 @@ export type AppRPC = {
 			installSkill: { params: { inspectionId: string }; response: { ok: true } };
 			discardInspection: { params: { inspectionId: string }; response: { ok: true } };
 			uninstallSkill: { params: { skillId: string }; response: { ok: true } };
+			checkSkillUpdate: { params: { skillId: string }; response: UpdateCheck };
+			applySkillUpdate: { params: { skillId: string }; response: { commitHash: string; permissions: Permission[] } };
 			getSkillAccess: { params: { skillId: string }; response: SkillAccess };
 			copySkillToken: { params: { skillId: string }; response: { ok: boolean } };
 			setSkillAccess: { params: { skillId: string; scope: TokenScope; granted: boolean }; response: SkillAccess };
