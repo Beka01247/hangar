@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { GitHubLoginProgress, OnboardingState, SetupTokenProgress } from "../../shared/types";
+import { Button, Icon, Panel } from "../components/ui";
 import { api, errorMessage, onClaudeLoginProgress, onGitHubLoginProgress } from "../rpc";
 
 interface Props {
@@ -7,41 +8,52 @@ interface Props {
 	onChange: () => Promise<void>;
 }
 
+const INSTALL_CLI = "npm install -g @anthropic-ai/claude-code";
+const SETUP_TOKEN = "claude setup-token";
+
 export function Onboarding({ state, onChange }: Props) {
-	const canFinish = state.claudeConnected && state.github !== null && state.disclaimerAccepted;
-	const [finishError, setFinishError] = useState<string | null>(null);
+	const ready = state.claudeConnected && state.github !== null && state.disclaimerAccepted;
+	const [error, setError] = useState<string | null>(null);
 
 	async function finish() {
 		try {
 			await api.completeOnboarding();
 			await onChange();
 		} catch (e) {
-			setFinishError(errorMessage(e));
+			setError(errorMessage(e));
 		}
 	}
 
+	const next = !state.claudeConnected ? "Connect Claude to continue" : !state.github ? "Connect GitHub to continue" : !state.disclaimerAccepted ? "Accept to continue" : "Open library";
+
 	return (
-		<div className="page">
-			<h1>Set up Hangar</h1>
-			<p className="muted">Connect your accounts once. Every installed skill will use them through Hangar.</p>
-
-			<ClaudeStep state={state} onChange={onChange} />
-			<GitHubStep state={state} onChange={onChange} />
-			<DisclaimerStep accepted={state.disclaimerAccepted} onChange={onChange} />
-
-			{finishError && <p className="error">{finishError}</p>}
-			<button disabled={!canFinish} onClick={finish}>
-				{canFinish ? "Open library" : "Complete all steps to continue"}
-			</button>
+		<div className="onboarding">
+			<Panel className="onboarding-card">
+				<div className="stack gap-2">
+					<span className="mark" style={{ width: 44, height: 44, borderRadius: 13 }}><Icon name="mark" size={22} stroke="#fff" /></span>
+					<span className="big">Connect once.</span>
+					<span className="muted">Every skill you install runs through these accounts — behind its own token, never with your keys.</span>
+				</div>
+				<ClaudeStep state={state} onChange={onChange} />
+				<GitHubStep state={state} onChange={onChange} />
+				<Disclaimer accepted={state.disclaimerAccepted} onChange={onChange} />
+				{error && <span className="error small">{error}</span>}
+				<Button variant={ready ? "primary" : "default"} disabled={!ready} onClick={finish} style={{ height: 46, borderRadius: 23 }}>
+					{next}
+				</Button>
+			</Panel>
 		</div>
 	);
 }
 
-function useSubmit(action: (value: string) => Promise<void>, onChange: () => Promise<void>) {
+function Check({ done }: { done: boolean }) {
+	return <span className={`check ${done ? "done" : ""}`}>{done && <Icon name="check" size={14} stroke="#000" />}</span>;
+}
+
+function useSubmit(action: (value: string) => Promise<unknown>, onChange: () => Promise<void>) {
 	const [value, setValue] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-
 	async function submit(e: FormEvent) {
 		e.preventDefault();
 		if (!value.trim()) return;
@@ -57,83 +69,36 @@ function useSubmit(action: (value: string) => Promise<void>, onChange: () => Pro
 			setBusy(false);
 		}
 	}
-
 	return { value, setValue, busy, error, submit };
 }
 
-const SETUP_TOKEN_COMMAND = "claude setup-token";
-const INSTALL_CLI_COMMAND = "npm install -g @anthropic-ai/claude-code";
-
-type ClaudeMode = "subscription" | "api-key";
-
-function ClaudeStep({ state, onChange }: { state: OnboardingState; onChange: () => Promise<void> }) {
-	const [mode, setMode] = useState<ClaudeMode>("subscription");
-
-	if (state.claudeConnected) {
-		const label =
-			state.claudeAuthMode === "api-key"
-				? "API key"
-				: state.claudeAuthMode === "oauth-token"
-					? "Claude subscription (setup-token)"
-					: "Claude subscription (Claude Code login)";
-		return (
-			<section>
-				<h2>1. Claude</h2>
-				<div className="row">
-					<span>Connected via {label}</span>
-					<button onClick={() => api.disconnectClaude().then(onChange)}>Disconnect</button>
-				</div>
-			</section>
-		);
-	}
-
-	return (
-		<section>
-			<h2>1. Claude</h2>
-			<div className="row" style={{ marginBottom: 12 }}>
-				<label>
-					<input type="radio" checked={mode === "subscription"} onChange={() => setMode("subscription")} /> Claude
-					subscription (Pro / Max)
-				</label>
-				<label>
-					<input type="radio" checked={mode === "api-key"} onChange={() => setMode("api-key")} /> API key
-				</label>
-			</div>
-			{mode === "subscription" ? <SubscriptionForm state={state} onChange={onChange} /> : <ApiKeyForm onChange={onChange} />}
-		</section>
-	);
-}
-
-function CommandLine({ command }: { command: string }) {
-	const [copied, setCopied] = useState(false);
-	return (
-		<div className="row">
-			<code>{command}</code>
-			<button
-				type="button"
-				onClick={() => api.copyToClipboard({ text: command }).then(() => setCopied(true))}
-			>
-				{copied ? "Copied" : "Copy"}
-			</button>
-		</div>
-	);
-}
-
-function SubscriptionForm({ state, onChange }: { state: OnboardingState; onChange: () => Promise<void> }) {
+function ClaudeStep({ state, onChange }: Props) {
+	const [mode, setMode] = useState<"subscription" | "api-key">("subscription");
 	const [progress, setProgress] = useState<SetupTokenProgress | null>(null);
 	const [code, setCode] = useState("");
 	const [manual, setManual] = useState(false);
-	const manualForm = useSubmit((token) => api.connectClaudeSubscription({ token }).then(() => undefined), onChange);
+	const apiKey = useSubmit((k) => api.connectClaude({ apiKey: k }), onChange);
+	const token = useSubmit((t) => api.connectClaudeSubscription({ token: t }), onChange);
 
-	useEffect(() => {
-		return onClaudeLoginProgress((p) => {
-			setProgress(p);
-			if (p.phase === "connected") void onChange();
-		});
-	}, [onChange]);
+	useEffect(() => onClaudeLoginProgress((p) => {
+		setProgress(p);
+		if (p.phase === "connected") void onChange();
+	}), [onChange]);
 
-	async function start() {
-		setCode("");
+	if (state.claudeConnected) {
+		const label = state.claudeAuthMode === "api-key" ? "API key" : state.claudeAuthMode === "oauth-token" ? "subscription · via setup-token" : "subscription · Claude Code login";
+		return (
+			<div className="step">
+				<Check done />
+				<div className="stack grow"><span style={{ fontWeight: 600 }}>Claude</span><span className="small muted">{label}</span></div>
+				<Button variant="ghost" size="sm" onClick={() => api.disconnectClaude().then(onChange)}>Change</Button>
+			</div>
+		);
+	}
+
+	const busy = progress !== null && !["error", "cancelled", "connected"].includes(progress.phase);
+
+	async function login() {
 		setProgress({ phase: "started" });
 		try {
 			await api.startClaudeLogin();
@@ -141,8 +106,7 @@ function SubscriptionForm({ state, onChange }: { state: OnboardingState; onChang
 			setProgress({ phase: "error", message: errorMessage(e) });
 		}
 	}
-
-	async function useCliLogin() {
+	async function reuse() {
 		setProgress({ phase: "verifying" });
 		try {
 			await api.connectClaudeSubscription({ token: null });
@@ -153,142 +117,99 @@ function SubscriptionForm({ state, onChange }: { state: OnboardingState; onChang
 		}
 	}
 
-	if (!state.claudeCliVersion) {
-		return (
-			<div>
-				<p className="muted">Subscription mode runs skills through the Claude Code CLI, which is not installed yet.</p>
-				<CommandLine command={INSTALL_CLI_COMMAND} />
-				<button type="button" onClick={onChange} style={{ marginTop: 8 }}>
-					I installed it, check again
-				</button>
-			</div>
-		);
-	}
-
-	const busy = progress !== null && !["error", "cancelled", "connected"].includes(progress.phase);
-
 	return (
-		<div>
-			<p className="muted">Usage counts against your Pro / Max limits. Claude Code {state.claudeCliVersion} found.</p>
-			<div className="row">
-				<button type="button" disabled={busy} onClick={start}>
-					{busy ? "Waiting for Claude…" : "Log in with Claude"}
-				</button>
-				<button type="button" disabled={busy} onClick={useCliLogin}>
-					Use existing Claude Code login
-				</button>
-				{busy && (
-					<button type="button" onClick={() => api.cancelClaudeLogin()}>
-						Cancel
-					</button>
-				)}
+		<div className="step" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+			<div className="row gap-3">
+				<Check done={false} />
+				<div className="stack grow"><span style={{ fontWeight: 600 }}>Claude</span><span className="small muted">Skills run on your account</span></div>
+				<div className="segment">
+					<button className={mode === "subscription" ? "active" : ""} onClick={() => setMode("subscription")}>Subscription</button>
+					<button className={mode === "api-key" ? "active" : ""} onClick={() => setMode("api-key")}>API key</button>
+				</div>
 			</div>
-
-			{progress && <LoginStatus progress={progress} />}
-
-			{progress?.phase === "needs-code" && (
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						void api.submitClaudeLoginCode({ code });
-					}}
-					style={{ marginTop: 8 }}
-				>
-					<input placeholder="Paste the code shown in the browser" value={code} onChange={(e) => setCode(e.target.value)} />
-					<button type="submit" disabled={!code.trim()}>
-						Submit code
-					</button>
+			{mode === "api-key" ? (
+				<form onSubmit={apiKey.submit} className="stack gap-2">
+					<input type="password" placeholder="sk-ant-…" value={apiKey.value} onChange={(e) => apiKey.setValue(e.target.value)} autoComplete="off" />
+					{apiKey.error && <span className="error small">{apiKey.error}</span>}
+					<Button variant="white" type="submit" disabled={apiKey.busy}>{apiKey.busy ? "Checking…" : "Connect"}</Button>
 				</form>
-			)}
-
-			<p className="muted" style={{ marginTop: 12 }}>
-				<button type="button" onClick={() => setManual((m) => !m)}>
-					{manual ? "Hide" : "Paste a token manually"}
-				</button>
-			</p>
-			{manual && (
-				<form onSubmit={manualForm.submit}>
-					<p className="muted">Run this in Terminal and paste the token it prints:</p>
-					<CommandLine command={SETUP_TOKEN_COMMAND} />
-					<input
-						type="password"
-						placeholder="sk-ant-oat01-…"
-						value={manualForm.value}
-						onChange={(e) => manualForm.setValue(e.target.value)}
-						autoComplete="off"
-					/>
-					{manualForm.error && <p className="error">{manualForm.error}</p>}
-					<button type="submit" disabled={manualForm.busy}>
-						{manualForm.busy ? "Checking with Claude…" : "Connect with token"}
-					</button>
-				</form>
+			) : !state.claudeCliVersion ? (
+				<div className="stack gap-2 small">
+					<span className="muted">Subscription mode runs skills through the Claude Code CLI, which is not installed yet.</span>
+					<CommandLine command={INSTALL_CLI} />
+					<Button size="sm" onClick={onChange}>I installed it, check again</Button>
+				</div>
+			) : (
+				<div className="stack gap-2">
+					<div className="row gap-2 wrap">
+						<Button variant="white" disabled={busy} onClick={login}>{busy ? "Waiting for Claude…" : "Log in with Claude"}</Button>
+						<Button variant="ghost" size="sm" disabled={busy} onClick={reuse}>Use Claude Code login</Button>
+						{busy && <Button variant="ghost" size="sm" onClick={() => api.cancelClaudeLogin()}>Cancel</Button>}
+						<Button variant="ghost" size="sm" onClick={() => setManual((m) => !m)}>{manual ? "Hide" : "Paste a token"}</Button>
+					</div>
+					{progress && <LoginStatus progress={progress} />}
+					{progress?.phase === "needs-code" && (
+						<form className="row gap-2" onSubmit={(e) => { e.preventDefault(); void api.submitClaudeLoginCode({ code }); }}>
+							<input placeholder="Code from the browser" value={code} onChange={(e) => setCode(e.target.value)} />
+							<Button type="submit" size="sm" disabled={!code.trim()}>Submit</Button>
+						</form>
+					)}
+					{manual && (
+						<form onSubmit={token.submit} className="stack gap-2 small">
+							<span className="muted">Run this in Terminal and paste the token it prints:</span>
+							<CommandLine command={SETUP_TOKEN} />
+							<input type="password" placeholder="sk-ant-oat01-…" value={token.value} onChange={(e) => token.setValue(e.target.value)} autoComplete="off" />
+							{token.error && <span className="error">{token.error}</span>}
+							<Button size="sm" type="submit" disabled={token.busy}>{token.busy ? "Checking…" : "Connect with token"}</Button>
+						</form>
+					)}
+				</div>
 			)}
 		</div>
 	);
 }
 
 function LoginStatus({ progress }: { progress: SetupTokenProgress }) {
-	switch (progress.phase) {
-		case "started":
-			return <p className="muted">Starting Claude Code…</p>;
-		case "browser":
-			return (
-				<p className="muted">
-					Approve access in the browser window that just opened.{" "}
-					{progress.url && (
-						<button type="button" onClick={() => api.openExternal({ url: progress.url! })}>
-							Open it again
-						</button>
-					)}
-				</p>
-			);
-		case "needs-code":
-			return <p className="muted">The browser showed a code instead of returning here — paste it below.</p>;
-		case "token-received":
-		case "verifying":
-			return <p className="muted">Token received, checking it with Claude…</p>;
-		case "connected":
-			return <p>Connected.</p>;
-		case "error":
-			return <p className="error">{progress.message}</p>;
-		case "cancelled":
-			return <p className="muted">Cancelled.</p>;
-	}
-}
-
-function ApiKeyForm({ onChange }: { onChange: () => Promise<void> }) {
-	const form = useSubmit((apiKey) => api.connectClaude({ apiKey }).then(() => undefined), onChange);
+	const text: Record<string, string> = {
+		started: "Starting Claude Code…",
+		browser: "Approve access in the browser window that just opened.",
+		"needs-code": "The browser showed a code — paste it below.",
+		"token-received": "Token received, checking it with Claude…",
+		verifying: "Checking with Claude…",
+		connected: "Connected.",
+		cancelled: "Cancelled.",
+	};
+	if (progress.phase === "error") return <span className="error small">{progress.message}</span>;
 	return (
-		<form onSubmit={form.submit}>
-			<p className="muted">Pay-as-you-go via the Claude Platform. The key is stored in the system keychain and never leaves this machine.</p>
-			<input
-				type="password"
-				placeholder="sk-ant-…"
-				value={form.value}
-				onChange={(e) => form.setValue(e.target.value)}
-				autoComplete="off"
-			/>
-			{form.error && <p className="error">{form.error}</p>}
-			<button type="submit" disabled={form.busy}>
-				{form.busy ? "Checking…" : "Connect with API key"}
-			</button>
-		</form>
+		<span className="small muted">
+			{text[progress.phase]}{" "}
+			{progress.phase === "browser" && progress.url && <button className="red" onClick={() => api.openExternal({ url: progress.url! })}>Open again</button>}
+		</span>
 	);
 }
 
-function GitHubStep({ state, onChange }: { state: OnboardingState; onChange: () => Promise<void> }) {
+function GitHubStep({ state, onChange }: Props) {
 	const account = state.github;
-	const form = useSubmit((token) => api.connectGitHub({ token }).then(() => undefined), onChange);
+	const pat = useSubmit((t) => api.connectGitHub({ token: t }), onChange);
 	const [progress, setProgress] = useState<GitHubLoginProgress | null>(null);
-	const [manual, setManual] = useState(!state.githubOneClickAvailable);
+	const [manual, setManual] = useState(false);
 
-	useEffect(() => {
-		return onGitHubLoginProgress((p) => {
-			setProgress(p);
-			if (p.phase === "connected") void onChange();
-		});
-	}, [onChange]);
+	useEffect(() => onGitHubLoginProgress((p) => {
+		setProgress(p);
+		if (p.phase === "connected") void onChange();
+	}), [onChange]);
 
+	if (account) {
+		return (
+			<div className="step">
+				<Check done />
+				<div className="stack grow"><span style={{ fontWeight: 600 }}>GitHub</span><span className="small muted">@{account.login}</span></div>
+				<Button variant="ghost" size="sm" onClick={() => api.disconnectGitHub().then(onChange)}>Change</Button>
+			</div>
+		);
+	}
+
+	const busy = progress !== null && !["error", "cancelled", "connected"].includes(progress.phase);
 	async function start() {
 		setProgress({ phase: "started" });
 		try {
@@ -297,8 +218,7 @@ function GitHubStep({ state, onChange }: { state: OnboardingState; onChange: () 
 			setProgress({ phase: "error", message: errorMessage(e) });
 		}
 	}
-
-	async function useCli() {
+	async function cli() {
 		setProgress({ phase: "verifying" });
 		try {
 			await api.connectGitHubCli();
@@ -309,111 +229,63 @@ function GitHubStep({ state, onChange }: { state: OnboardingState; onChange: () 
 		}
 	}
 
-	if (account) {
-		return (
-			<section>
-				<h2>2. GitHub</h2>
-				<div className="row">
-					<img src={account.avatarUrl} alt="" width={24} height={24} />
-					<span>@{account.login}</span>
-					{account.scopes.length > 0 && <span className="muted">scopes: {account.scopes.join(", ")}</span>}
-					<button onClick={() => api.disconnectGitHub().then(onChange)}>Disconnect</button>
-				</div>
-			</section>
-		);
-	}
-
-	const busy = progress !== null && !["error", "cancelled", "connected"].includes(progress.phase);
-
 	return (
-		<section>
-			<h2>2. GitHub</h2>
-			<p className="muted">Needed to read repositories and track updates.</p>
-			<div className="row">
-				{state.githubOneClickAvailable && (
-					<button type="button" disabled={busy} onClick={start}>
-						{busy ? "Waiting for GitHub…" : "Log in with GitHub"}
-					</button>
-				)}
-				<button type="button" disabled={busy} onClick={useCli}>
-					Use GitHub CLI login
-				</button>
-				{busy && progress?.phase === "code" && (
-					<button type="button" onClick={() => api.cancelGitHubLogin()}>
-						Cancel
-					</button>
+		<div className="step" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+			<div className="row gap-3">
+				<Check done={false} />
+				<div className="stack grow"><span style={{ fontWeight: 600 }}>GitHub</span><span className="small muted">Reads repositories and tracks updates</span></div>
+				{state.githubOneClickAvailable ? (
+					<Button variant="white" disabled={busy} onClick={start}>{busy ? "Waiting…" : "Log in"}</Button>
+				) : (
+					<Button variant="white" disabled={busy} onClick={cli}>Use GitHub CLI</Button>
 				)}
 			</div>
-			{progress && <GitHubLoginStatus progress={progress} />}
-
-			<p className="muted" style={{ marginTop: 12 }}>
-				<button type="button" onClick={() => setManual((m) => !m)}>
-					{manual ? "Hide" : "Use a personal access token"}
-				</button>
-			</p>
+			{progress?.phase === "code" && (
+				<span className="small">
+					Enter <code style={{ fontSize: 16 }}>{progress.userCode}</code> on the GitHub page that opened (copied to your clipboard).
+				</span>
+			)}
+			{progress?.phase === "error" && <span className="error small">{progress.message}</span>}
+			{progress?.phase === "verifying" && <span className="small muted">Checking with GitHub…</span>}
+			<div className="row gap-2">
+				{state.githubOneClickAvailable && <Button variant="ghost" size="sm" disabled={busy} onClick={cli}>Use GitHub CLI login</Button>}
+				<Button variant="ghost" size="sm" onClick={() => setManual((m) => !m)}>{manual ? "Hide" : "Use a personal access token"}</Button>
+			</div>
 			{manual && (
-				<form onSubmit={form.submit}>
-					<input
-						type="password"
-						placeholder="ghp_… or github_pat_…"
-						value={form.value}
-						onChange={(e) => form.setValue(e.target.value)}
-						autoComplete="off"
-					/>
-					{form.error && <p className="error">{form.error}</p>}
-					<div className="row">
-						<button type="submit" disabled={form.busy}>
-							{form.busy ? "Checking…" : "Connect with token"}
-						</button>
-						<button type="button" onClick={() => api.openExternal({ url: "https://github.com/settings/tokens" })}>
-							Create a token
-						</button>
+				<form onSubmit={pat.submit} className="stack gap-2">
+					<input type="password" placeholder="ghp_… or github_pat_…" value={pat.value} onChange={(e) => pat.setValue(e.target.value)} autoComplete="off" />
+					{pat.error && <span className="error small">{pat.error}</span>}
+					<div className="row gap-2">
+						<Button size="sm" type="submit" disabled={pat.busy}>{pat.busy ? "Checking…" : "Connect"}</Button>
+						<Button variant="ghost" size="sm" onClick={() => api.openExternal({ url: "https://github.com/settings/tokens" })}>Create a token</Button>
 					</div>
 				</form>
 			)}
-		</section>
+		</div>
 	);
 }
 
-function GitHubLoginStatus({ progress }: { progress: GitHubLoginProgress }) {
-	switch (progress.phase) {
-		case "started":
-			return <p className="muted">Requesting a login code…</p>;
-		case "code":
-			return (
-				<p>
-					Enter this code on the GitHub page that just opened (already copied to your clipboard):{" "}
-					<code style={{ fontSize: 18 }}>{progress.userCode}</code>{" "}
-					{progress.url && (
-						<button type="button" onClick={() => api.openExternal({ url: progress.url! })}>
-							Open page again
-						</button>
-					)}
-				</p>
-			);
-		case "verifying":
-			return <p className="muted">Checking with GitHub…</p>;
-		case "connected":
-			return <p>Connected.</p>;
-		case "error":
-			return <p className="error">{progress.message}</p>;
-		case "cancelled":
-			return <p className="muted">Cancelled.</p>;
-	}
+function Disclaimer({ accepted, onChange }: { accepted: boolean; onChange: () => Promise<void> }) {
+	return (
+		<div className="stack gap-2" style={{ padding: "16px 18px", borderRadius: 16, background: "var(--red-glass)", border: "1px solid var(--red-line)" }}>
+			<span style={{ fontWeight: 600, color: "var(--red-tint)" }}>Skills come from open repositories</span>
+			<span className="small" style={{ color: "var(--fg-70)", lineHeight: 1.5 }}>Hangar does not review them. Install only what you trust — Hangar limits what an installed skill can reach, not what you can install.</span>
+			<button className="row gap-2 small" style={{ color: "inherit" }} onClick={() => !accepted && api.acceptDisclaimer().then(onChange)}>
+				<span style={{ width: 18, height: 18, borderRadius: 5, background: accepted ? "var(--red)" : "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+					{accepted && <Icon name="check" size={11} stroke="#fff" />}
+				</span>
+				I understand
+			</button>
+		</div>
+	);
 }
 
-function DisclaimerStep({ accepted, onChange }: { accepted: boolean; onChange: () => Promise<void> }) {
+function CommandLine({ command }: { command: string }) {
+	const [copied, setCopied] = useState(false);
 	return (
-		<section>
-			<h2>3. On your own risk</h2>
-			<p>
-				Hangar installs code from open repositories. We do not review it. Install only what you trust.
-			</p>
-			{accepted ? (
-				<span>Accepted</span>
-			) : (
-				<button onClick={() => api.acceptDisclaimer().then(onChange)}>I understand</button>
-			)}
-		</section>
+		<div className="row gap-2">
+			<code style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(0,0,0,0.4)" }}>{command}</code>
+			<Button variant="ghost" size="sm" onClick={() => api.copyToClipboard({ text: command }).then(() => setCopied(true))}>{copied ? "Copied" : "Copy"}</Button>
+		</div>
 	);
 }

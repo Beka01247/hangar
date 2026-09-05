@@ -8,3 +8,6 @@ _to_delete/
 # Logs and scratch
 *.log
 .app.hutch-template.lock
+
+# Files Claude delivered into the folder
+Claude outputs/

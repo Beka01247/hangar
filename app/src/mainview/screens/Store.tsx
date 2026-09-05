@@ -1,12 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { StoreResult, StoreSort } from "../../shared/types";
+import { Button, Icon, Panel, Segment, Tile, tileTone } from "../components/ui";
 import { api, errorMessage } from "../rpc";
 
-interface Props {
-	onInstall: (url: string) => void;
-}
-
-export function Store({ onInstall }: Props) {
+export function Store({ onInstall }: { onInstall: (url: string) => void }) {
 	const [query, setQuery] = useState("");
 	const [sort, setSort] = useState<StoreSort>("stars");
 	const [results, setResults] = useState<StoreResult[] | null>(null);
@@ -14,6 +11,7 @@ export function Store({ onInstall }: Props) {
 	const [busy, setBusy] = useState(false);
 
 	async function search(q = query, s = sort) {
+		if (/github\.com\//.test(q)) return onInstall(q.trim());
 		setBusy(true);
 		setError(null);
 		try {
@@ -35,57 +33,52 @@ export function Store({ onInstall }: Props) {
 	}
 
 	return (
-		<div className="page">
-			<h1>Store</h1>
-			<p className="muted">
-				Plain GitHub search limited to repositories Hangar can actually run — ones with a SKILL.md, plugin.json or Claude Code commands. Stars and
-				dates come from GitHub; Hangar ranks nothing itself.
-			</p>
-			<form onSubmit={submit} className="row">
-				<input placeholder="Search skills or repositories" value={query} onChange={(e) => setQuery(e.target.value)} />
-				<select
+		<main className="main">
+			<div className="row between">
+				<div className="stack gap-1">
+					<h1>Store</h1>
+					<span className="muted">Open repositories Hangar can run. Stars and dates come from GitHub; Hangar ranks nothing itself.</span>
+				</div>
+				<Segment
 					value={sort}
-					onChange={(e) => {
-						const next = e.target.value as StoreSort;
-						setSort(next);
-						void search(query, next);
-					}}
-				>
-					<option value="stars">Most stars</option>
-					<option value="updated">Recently updated</option>
-					<option value="best-match">Best match</option>
-				</select>
-				<button type="submit" disabled={busy}>
-					{busy ? "Searching…" : "Search"}
-				</button>
-			</form>
-			{error && <p className="error">{error}</p>}
-			{results && results.length === 0 && <p className="muted">Nothing found.</p>}
-			<div className="grid" style={{ marginTop: 12 }}>
-				{results?.map((r) => (
-					<div key={r.fullName} className="card" onClick={() => !r.installed && onInstall(r.installUrl)}>
-						<h3 style={{ margin: "0 0 4px" }}>{r.fullName}</h3>
-						<div className="muted" style={{ minHeight: 36 }}>
-							{r.description || "No description"}
-						</div>
-						<div className="muted" style={{ fontSize: 12, margin: "6px 0" }}>
-							★ {r.stars.toLocaleString()} · updated {new Date(r.pushedAt).toLocaleDateString()}
-							{r.language && ` · ${r.language}`} · {r.manifestPath}
-						</div>
-						<div className="row">
-							<button disabled={r.installed}>{r.installed ? "Installed" : "Install"}</button>
-							<button
-								onClick={(e) => {
-									e.stopPropagation();
-									void api.openExternal({ url: r.htmlUrl });
-								}}
-							>
-								GitHub
-							</button>
-						</div>
-					</div>
-				))}
+					options={[{ value: "stars", label: "Most stars" }, { value: "updated", label: "Updated" }, { value: "best-match", label: "Match" }]}
+					onChange={(s) => { setSort(s); void search(query, s); }}
+				/>
 			</div>
-		</div>
+			<form className="pill-input" onSubmit={submit}>
+				<Icon name="search" size={18} stroke="var(--fg-55)" />
+				<input placeholder="Search skills — or paste a GitHub URL" value={query} onChange={(e) => setQuery(e.target.value)} />
+				<Button variant="ghost" size="sm" type="submit" disabled={busy}>{busy ? "Searching…" : "Search"}</Button>
+			</form>
+			{error && <span className="error">{error}</span>}
+			<div className="scroll" style={{ paddingBottom: 24 }}>
+				{busy && results === null && <span className="muted">Searching GitHub…</span>}
+				{results && results.length === 0 && !busy && <span className="muted">Nothing found.</span>}
+				{results && results.length > 0 && (
+					<div className="grid-3">
+						{results.map((r) => (
+							<Panel key={r.fullName} className="card" style={{ padding: 20, gap: 14 }}>
+								<div onClick={() => !r.installed && onInstall(r.installUrl)} className="stack gap-3">
+									<div className="row gap-2">
+										<Tile tone={tileTone(r.fullName)} size={44} />
+										<div className="stack" style={{ minWidth: 0 }}>
+											<span style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.fullName.split("/")[1]}</span>
+											<span className="tiny muted">{r.ownerLogin} · ★ {r.stars.toLocaleString()} · {r.manifestPath}</span>
+										</div>
+									</div>
+									<span className="small" style={{ color: "var(--fg-70)", minHeight: 58, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+										{r.description || "No description"}
+									</span>
+									<div className="row between">
+										<span className="chip" style={{ opacity: r.installed ? 0.5 : 1 }}>{r.installed ? "Installed" : "Install"}</span>
+										<button className="tiny muted" onClick={(e) => { e.stopPropagation(); void api.openExternal({ url: r.htmlUrl }); }}>GitHub ↗</button>
+									</div>
+								</div>
+							</Panel>
+						))}
+					</div>
+				)}
+			</div>
+		</main>
 	);
 }

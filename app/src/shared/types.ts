@@ -276,6 +276,7 @@ export interface UsageSkillRow {
 
 export interface UsageReport {
 	totalMonthUsd: number;
+	daily: { day: string; usd: number }[];
 	rows: UsageSkillRow[];
 	recent: (UsageRecord & { skillName: string })[];
 }

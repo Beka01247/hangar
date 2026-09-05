@@ -35,10 +35,20 @@ export async function buildUsageReport(): Promise<UsageReport> {
 	});
 
 	const totalMonthUsd = rows.reduce((s, r) => s + r.monthSpendUsd, 0);
+	const daily = Array.from({ length: 30 }, (_, i) => {
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		d.setDate(d.getDate() - (29 - i));
+		return { day: d.toISOString().slice(0, 10), usd: 0 };
+	});
+	for (const u of log.usage) {
+		const hit = daily.find((d) => d.day === u.timestamp.slice(0, 10));
+		if (hit) hit.usd += u.costUsd;
+	}
 	const recent = [...log.usage]
 		.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
 		.slice(0, 50)
 		.map((u) => ({ ...u, skillName: registry.skills[u.skillId]?.name ?? u.skillId }));
 
-	return { totalMonthUsd, rows: rows.sort((a, b) => b.monthSpendUsd - a.monthSpendUsd), recent };
+	return { totalMonthUsd, daily, rows: rows.sort((a, b) => b.monthSpendUsd - a.monthSpendUsd), recent };
 }
