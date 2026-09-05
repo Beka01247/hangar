@@ -107,7 +107,7 @@ export async function listSkillTools(skillId: string): Promise<SkillTool[]> {
 	for (const [name, connection] of await connectionsFor(skillId)) {
 		try {
 			const client = await connection.connect();
-			const result = await client.listTools();
+			const result = await client.listTools(undefined, { timeout: 180_000 });
 			for (const tool of result.tools) {
 				tools.push({ server: name, name: tool.name, description: tool.description ?? "", inputSchema: (tool.inputSchema as Record<string, unknown>) ?? {} });
 			}
@@ -123,7 +123,7 @@ export async function callSkillTool(skillId: string, server: string, tool: strin
 	const connection = (await connectionsFor(skillId)).get(server);
 	if (!connection) throw new Error(`Unknown MCP server ${server}`);
 	const client = await connection.connect();
-	const result = await client.callTool({ name: tool, arguments: args });
+	const result = await client.callTool({ name: tool, arguments: args }, undefined, { timeout: 180_000 });
 	const content = Array.isArray(result.content) ? (result.content as { type: string; text?: string }[]) : [];
 	const text = content.map((c) => (c.type === "text" ? (c.text ?? "") : `[${c.type}]`)).join("\n");
 	return { text: text || JSON.stringify(result.structuredContent ?? result, null, 2), isError: Boolean(result.isError), raw: result };
