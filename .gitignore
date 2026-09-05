@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Private working notes and prototypes
+docs/
+_to_delete/
+
+# Logs and scratch
+*.log
+.app.hutch-template.lock
