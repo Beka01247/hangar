@@ -86,7 +86,7 @@ export function SkillRunner({ item }: { item: LibrarySkill }) {
 					</div>
 				</div>
 			) : (
-				<p className="muted">No custom interface for this skill yet — this is the default conversation view. Every tool call is shown as it happens.</p>
+				<p className="muted">Default conversation view. Every tool call is shown as it happens.</p>
 			)}
 			{error && <p className="error">{error}</p>}
 

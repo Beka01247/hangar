@@ -110,6 +110,8 @@ export async function applySkillUpdate(skillId: string): Promise<{ commitHash: s
 		const s = r.skills[skillId];
 		if (s) {
 			s.commands = manifest.commands;
+			s.mcpServers = manifest.mcpServers;
+			s.envVars = permissions.filter((p) => p.type === "env").map((p) => p.scope);
 			s.manifestType = manifest.format;
 			s.lastChecked = new Date().toISOString();
 		}

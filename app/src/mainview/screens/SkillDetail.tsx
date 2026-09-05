@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { LibrarySkill, SkillAccess, TokenScope, UsageRecord } from "../../shared/types";
 import { api, errorMessage, onSkillEvent } from "../rpc";
 import { SkillRunner } from "./SkillRunner";
+import { SkillEnv } from "./SkillEnv";
+import { SkillTools } from "./SkillTools";
 import { SkillUpdate } from "./SkillUpdate";
 
 interface Props {
@@ -61,7 +63,11 @@ export function SkillDetail({ item: initial, onBack }: Props) {
 				in the last 7 days
 			</p>
 
+			<SkillTools item={item} />
+
 			<SkillRunner item={item} />
+
+			<SkillEnv item={item} />
 
 			<SkillUpdate
 				item={item}

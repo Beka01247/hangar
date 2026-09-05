@@ -17,6 +17,8 @@ import {
 } from "./services/onboarding";
 import { cancelGitHubDeviceFlow, runGitHubDeviceFlow, tokenFromGitHubCli } from "./services/github-oauth";
 import { readSkillLog, sendToSkill, startSkill, stopSkill } from "./services/runtime/manager";
+import { callSkillTool, listSkillTools } from "./services/runtime/mcp";
+import { listSkillEnv, setSkillEnv } from "./services/runtime/skill-env";
 import { cancelSetupToken, startSetupToken, submitSetupCode } from "./services/setup-token";
 import { searchStore } from "./services/store";
 import { buildUsageReport } from "./services/usage-report";
@@ -139,6 +141,13 @@ export function createAppRPC() {
 					return { ok: true } as const;
 				},
 				getSkillLog: ({ skillId, tailLines }) => readSkillLog(skillId, tailLines),
+				listSkillTools: ({ skillId }) => listSkillTools(skillId),
+				callSkillTool: ({ skillId, server, tool, args }) => callSkillTool(skillId, server, tool, args),
+				listSkillEnv: ({ skillId }) => listSkillEnv(skillId),
+				setSkillEnv: async ({ skillId, name, value }) => {
+					await setSkillEnv(skillId, name, value);
+					return { ok: true } as const;
+				},
 				searchStore: ({ query, sort }) => searchStore(query, sort),
 				getUsageReport: () => buildUsageReport(),
 				getSkillUsage: async ({ skillId }) => (await usageStore.read()).usage.filter((u) => u.skillId === skillId),

@@ -6,6 +6,7 @@ import { tokenForSkill } from "../../store/tokens";
 import { cliEnv } from "../claude-cli";
 import { getClaudeCredentials } from "../onboarding";
 import { proxyUrl } from "../proxy";
+import { resolveSkillEnv } from "./skill-env";
 
 export const WORKSPACES_DIR = join(DATA_DIR, "workspaces");
 export const LOGS_DIR = join(DATA_DIR, "logs");
@@ -38,7 +39,9 @@ export async function buildRuntimeEnv(skillId: string): Promise<RuntimeEnv> {
 	if (!scopes.has("claude")) throw new Error("Claude access is turned off for this skill");
 
 	const proxy = proxyUrl();
+	const secrets = await resolveSkillEnv(skillId);
 	const env = cliEnv({
+		...secrets,
 		HANGAR_SKILL_ID: skillId,
 		HANGAR_SKILL_TOKEN: token.token,
 		HANGAR_PROXY_URL: proxy,

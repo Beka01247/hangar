@@ -25,8 +25,10 @@ export interface McpServer {
 	name: string;
 	type: string;
 	command?: string;
+	args: string[];
 	url?: string;
 	env: Record<string, string>;
+	cwd?: string;
 }
 
 async function readText(path: string): Promise<string | null> {
@@ -111,8 +113,10 @@ async function readMcpServers(root: string): Promise<McpServer[]> {
 				name,
 				type: cfg.type ?? (cfg.url ? "streamable-http" : "stdio"),
 				command: cfg.command,
+				args: Array.isArray(cfg.args) ? cfg.args.map(String) : [],
 				url: cfg.url,
 				env: cfg.env ?? {},
+				cwd: cfg.cwd,
 			});
 		}
 	}

@@ -20,9 +20,40 @@ export interface SkillCommand {
 	argumentHint: string | null;
 }
 
+export interface SkillMcpServer {
+	name: string;
+	type: string;
+	command?: string;
+	args: string[];
+	url?: string;
+	env: Record<string, string>;
+	cwd?: string;
+}
+
+export interface SkillTool {
+	server: string;
+	name: string;
+	description: string;
+	inputSchema: Record<string, unknown>;
+}
+
+export interface SkillToolResult {
+	text: string;
+	isError: boolean;
+	raw: unknown;
+}
+
+export interface SkillEnvVar {
+	name: string;
+	set: boolean;
+	requiredBy: string[];
+}
+
 export interface Skill {
 	id: string;
 	commands?: SkillCommand[];
+	mcpServers?: SkillMcpServer[];
+	envVars?: string[];
 	repoUrl: string;
 	repoOwner: string;
 	repoName: string;

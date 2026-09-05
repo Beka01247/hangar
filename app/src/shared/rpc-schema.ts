@@ -9,8 +9,11 @@ import type {
 	RepoInspection,
 	SetupTokenProgress,
 	SkillAccess,
+	SkillEnvVar,
 	SkillEventEnvelope,
 	SkillSessionState,
+	SkillTool,
+	SkillToolResult,
 	StoreResult,
 	StoreSort,
 	TokenScope,
@@ -52,6 +55,10 @@ export type AppRPC = {
 			stopSkill: { params: { skillId: string }; response: { ok: true } };
 			sendToSkill: { params: { skillId: string; text: string }; response: { ok: true } };
 			getSkillLog: { params: { skillId: string; tailLines?: number }; response: string[] };
+			listSkillTools: { params: { skillId: string }; response: SkillTool[] };
+			callSkillTool: { params: { skillId: string; server: string; tool: string; args: Record<string, unknown> }; response: SkillToolResult };
+			listSkillEnv: { params: { skillId: string }; response: SkillEnvVar[] };
+			setSkillEnv: { params: { skillId: string; name: string; value: string | null }; response: { ok: true } };
 			searchStore: { params: { query: string; sort: StoreSort }; response: StoreResult[] };
 			getUsageReport: { params: void; response: UsageReport };
 			openExternal: { params: { url: string }; response: { ok: boolean } };

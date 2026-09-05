@@ -7,6 +7,7 @@ import { skillsStore } from "../../store/skills";
 import { issueToken, revokeTokens, scopesFromPermissions } from "../../store/tokens";
 import { fetchRepoMeta } from "../github";
 import { stopSkill } from "../runtime/manager";
+import { deleteSkillEnv } from "../runtime/skill-env";
 import { analyzePermissions } from "./analyzer";
 import { headCommit, shallowClone } from "./git";
 import { parseManifest, type ParsedManifest } from "./manifest-parser";
@@ -175,6 +176,8 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 			description: item.result.description,
 			manifestType: item.result.manifestType,
 			commands: item.result.commands,
+			mcpServers: item.manifest.mcpServers,
+			envVars: item.result.permissions.filter((p) => p.type === "env").map((p) => p.scope),
 			lastChecked: new Date().toISOString(),
 		};
 		await skillsStore.update((registry) => {
@@ -198,6 +201,7 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 
 export async function uninstallSkill(skillId: string): Promise<void> {
 	stopSkill(skillId);
+	await deleteSkillEnv(skillId);
 	await revokeTokens(skillId);
 	await skillsStore.update((registry) => {
 		delete registry.installed[skillId];

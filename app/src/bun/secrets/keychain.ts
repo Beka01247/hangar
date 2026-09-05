@@ -1,7 +1,7 @@
 const SERVICE_PREFIX = "dev.hangar.app";
 const ACCOUNT = "hangar";
 
-export type SecretName = "claude-api-key" | "claude-oauth-token" | "github-token";
+export type SecretName = "claude-api-key" | "claude-oauth-token" | "github-token" | `skill:${string}:${string}`;
 
 function serviceFor(name: SecretName): string {
 	return `${SERVICE_PREFIX}.${name}`;

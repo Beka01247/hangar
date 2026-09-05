@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { SkillEventEnvelope, SkillSessionState } from "../../../shared/types";
 import { skillsStore } from "../../store/skills";
 import { LOGS_DIR } from "./environment";
+import { closeSkillServers } from "./mcp";
 import { SkillSession } from "./session";
 
 const sessions = new Map<string, SkillSession>();
@@ -29,6 +30,7 @@ export async function startSkill(skillId: string, listener: (e: SkillEventEnvelo
 export function stopSkill(skillId: string): void {
 	sessions.get(skillId)?.stop();
 	sessions.delete(skillId);
+	void closeSkillServers(skillId);
 }
 
 export function stopAllSkills(): void {

@@ -5,6 +5,7 @@ import type { InstalledSkill, Skill, SkillEvent, SkillEventEnvelope, SkillSessio
 import { usageStore } from "../../store/usage";
 import { findClaudeBinary } from "../claude-cli";
 import { buildRuntimeEnv, LOGS_DIR, prepareWorkspace } from "./environment";
+import { resolveServers, toAgentSdkConfig } from "./mcp";
 
 const NETWORK_TOOLS = new Set(["WebFetch", "WebSearch"]);
 const NETWORK_COMMAND_RE = /\b(curl|wget|ssh|scp|nc|ncat|pip3? install|npm (install|i|ci)|bun (install|add)|git (clone|fetch|pull|push))\b/;
@@ -83,9 +84,11 @@ export class SkillSession {
 			return { behavior: "allow", updatedInput: input };
 		};
 
+		const servers = await resolveServers(this.skill, this.installed, this.workspace);
 		const options: Options = {
 			cwd: this.workspace,
 			env: runtime.env,
+			mcpServers: toAgentSdkConfig(servers, runtime.env),
 			pathToClaudeCodeExecutable: claude,
 			abortController: this.abort,
 			permissionMode: "default",
