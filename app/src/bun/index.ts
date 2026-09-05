@@ -3,6 +3,7 @@ import { installFileLogging, LOG_FILES } from "./log";
 import { installApplicationMenu } from "./menu";
 import { createAppRPC } from "./rpc";
 import { startProxy } from "./services/proxy";
+import { stopAllSkills } from "./services/runtime/manager";
 import { DATA_DIR } from "./store/json-store";
 
 installFileLogging();
@@ -19,3 +20,11 @@ new BrowserWindow({
 });
 
 console.log(`hangar: started, data dir ${DATA_DIR}, logs: ${LOG_FILES.join(", ")}`);
+
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+	process.on(signal, () => {
+		stopAllSkills();
+		process.exit(0);
+	});
+}
+process.on("exit", stopAllSkills);

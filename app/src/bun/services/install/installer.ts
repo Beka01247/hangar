@@ -6,6 +6,7 @@ import { DATA_DIR } from "../../store/json-store";
 import { skillsStore } from "../../store/skills";
 import { issueToken, revokeTokens, scopesFromPermissions } from "../../store/tokens";
 import { fetchRepoMeta } from "../github";
+import { stopSkill } from "../runtime/manager";
 import { analyzePermissions } from "./analyzer";
 import { headCommit, shallowClone } from "./git";
 import { parseManifest, type ParsedManifest } from "./manifest-parser";
@@ -193,10 +194,12 @@ export async function installSkill(inspectionId: string, progress: Progress): Pr
 }
 
 export async function uninstallSkill(skillId: string): Promise<void> {
+	stopSkill(skillId);
 	await revokeTokens(skillId);
 	await skillsStore.update((registry) => {
 		delete registry.installed[skillId];
 		delete registry.skills[skillId];
 	});
 	rmSync(join(SKILLS_DIR, skillId), { recursive: true, force: true });
+	rmSync(join(DATA_DIR, "workspaces", skillId), { recursive: true, force: true });
 }

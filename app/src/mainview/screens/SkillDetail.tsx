@@ -1,17 +1,30 @@
 import { useEffect, useState } from "react";
 import type { LibrarySkill, SkillAccess, TokenScope, UsageRecord } from "../../shared/types";
-import { api, errorMessage } from "../rpc";
+import { api, errorMessage, onSkillEvent } from "../rpc";
+import { SkillRunner } from "./SkillRunner";
 
 interface Props {
 	item: LibrarySkill;
 	onBack: () => void;
 }
 
-export function SkillDetail({ item, onBack }: Props) {
+export function SkillDetail({ item: initial, onBack }: Props) {
+	const [item, setItem] = useState(initial);
 	const [usage, setUsage] = useState<UsageRecord[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [confirmRemove, setConfirmRemove] = useState(false);
 	const [access, setAccess] = useState<SkillAccess | null>(null);
+
+	useEffect(() => {
+		return onSkillEvent((e) => {
+			if (e.skillId !== item.skill.id || e.event.kind !== "result") return;
+			void api.listLibrary().then((list) => {
+				const fresh = list.find((l) => l.skill.id === item.skill.id);
+				if (fresh) setItem(fresh);
+			});
+			void api.getSkillUsage({ skillId: item.skill.id }).then(setUsage);
+		});
+	}, [item.skill.id]);
 
 	useEffect(() => {
 		api.getSkillAccess({ skillId: item.skill.id }).then(setAccess).catch((e) => setError(errorMessage(e)));
@@ -47,12 +60,7 @@ export function SkillDetail({ item, onBack }: Props) {
 				in the last 7 days
 			</p>
 
-			<section>
-				<h2>No custom interface yet</h2>
-				<p className="muted">
-					The skill is installed at {item.installed.localPath}. Running it and building its UI arrive in later milestones.
-				</p>
-			</section>
+			<SkillRunner item={item} />
 
 			<section>
 				<h2>Access</h2>

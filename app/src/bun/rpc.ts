@@ -1,6 +1,6 @@
 import { BrowserView, Utils } from "electrobun/main";
 import type { AppRPC } from "../shared/rpc-schema";
-import type { GitHubLoginProgress, InstallProgress, SetupTokenProgress } from "../shared/types";
+import type { GitHubLoginProgress, InstallProgress, SetupTokenProgress, SkillEventEnvelope } from "../shared/types";
 import { discardInspection, inspectRepo, installSkill, uninstallSkill } from "./services/install/installer";
 import { getSkillAccess, updateSkillAccess } from "./services/access";
 import { listLibrary } from "./services/library";
@@ -15,6 +15,7 @@ import {
 	getAppState,
 } from "./services/onboarding";
 import { cancelGitHubDeviceFlow, runGitHubDeviceFlow, tokenFromGitHubCli } from "./services/github-oauth";
+import { readSkillLog, sendToSkill, startSkill, stopSkill } from "./services/runtime/manager";
 import { cancelSetupToken, startSetupToken, submitSetupCode } from "./services/setup-token";
 import { tokenForSkill } from "./store/tokens";
 import { usageStore } from "./store/usage";
@@ -118,6 +119,17 @@ export function createAppRPC() {
 					return { ok: token !== null };
 				},
 				setSkillAccess: ({ skillId, scope, granted }) => updateSkillAccess(skillId, scope, granted),
+				startSkill: ({ skillId }) => startSkill(skillId, (e: SkillEventEnvelope) => rpc.send.skillEvent(e)),
+				stopSkill: ({ skillId }) => {
+					stopSkill(skillId);
+					rpc.send.libraryChanged();
+					return { ok: true } as const;
+				},
+				sendToSkill: ({ skillId, text }) => {
+					sendToSkill(skillId, text);
+					return { ok: true } as const;
+				},
+				getSkillLog: ({ skillId, tailLines }) => readSkillLog(skillId, tailLines),
 				getSkillUsage: async ({ skillId }) => (await usageStore.read()).usage.filter((u) => u.skillId === skillId),
 				openExternal: ({ url }) => ({ ok: Utils.openExternal(url) }),
 			},

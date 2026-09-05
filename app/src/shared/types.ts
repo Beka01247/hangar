@@ -168,3 +168,29 @@ export interface InstallProgress {
 	message?: string;
 	line?: string;
 }
+
+export type SkillStatus = "stopped" | "starting" | "idle" | "running" | "error";
+
+export type SkillEvent =
+	| { kind: "status"; status: SkillStatus; message?: string }
+	| { kind: "user"; text: string }
+	| { kind: "assistant_text"; text: string }
+	| { kind: "tool_use"; id: string; name: string; input: unknown }
+	| { kind: "tool_result"; toolUseId: string; content: string; isError: boolean }
+	| { kind: "result"; text: string; isError: boolean; turnCostUsd: number; turnTokens: number }
+	| { kind: "denied"; tool: string; reason: string }
+	| { kind: "error"; message: string };
+
+export interface SkillEventEnvelope {
+	skillId: string;
+	seq: number;
+	at: string;
+	event: SkillEvent;
+}
+
+export interface SkillSessionState {
+	skillId: string;
+	status: SkillStatus;
+	events: SkillEventEnvelope[];
+	workspace: string;
+}

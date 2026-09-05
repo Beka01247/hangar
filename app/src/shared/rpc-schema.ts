@@ -8,6 +8,8 @@ import type {
 	RepoInspection,
 	SetupTokenProgress,
 	SkillAccess,
+	SkillEventEnvelope,
+	SkillSessionState,
 	TokenScope,
 	UsageRecord,
 } from "./types";
@@ -39,6 +41,10 @@ export type AppRPC = {
 			copySkillToken: { params: { skillId: string }; response: { ok: boolean } };
 			setSkillAccess: { params: { skillId: string; scope: TokenScope; granted: boolean }; response: SkillAccess };
 			getSkillUsage: { params: { skillId: string }; response: UsageRecord[] };
+			startSkill: { params: { skillId: string }; response: SkillSessionState };
+			stopSkill: { params: { skillId: string }; response: { ok: true } };
+			sendToSkill: { params: { skillId: string; text: string }; response: { ok: true } };
+			getSkillLog: { params: { skillId: string; tailLines?: number }; response: string[] };
 			openExternal: { params: { url: string }; response: { ok: boolean } };
 		};
 		messages: {};
@@ -50,6 +56,7 @@ export type AppRPC = {
 			claudeLoginProgress: SetupTokenProgress;
 			githubLoginProgress: GitHubLoginProgress;
 			installProgress: InstallProgress;
+			skillEvent: SkillEventEnvelope;
 		};
 	}>;
 };
